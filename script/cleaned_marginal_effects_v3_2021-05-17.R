@@ -6,8 +6,6 @@
 
 
 # Libraries ---------------------------------------------------------------
-
-
 library(tidyverse)
 library(lubridate)
 library(ragg)
@@ -23,9 +21,9 @@ library(glue)
 # https://strengejacke.github.io/ggeffects/articles/introduction_partial_residuals.html
 
 
+
+
 # Set theme ---------------------------------------------------------------
-
-
 ## change global theme settings (for all following plots)
 theme_set(theme_minimal(base_size = 12, base_family = "Roboto Condensed"))
 ## modify plot elements globally (for all following plots)
@@ -44,8 +42,6 @@ theme_update(
 
 
 # Load data ---------------------------------------------------------------
-
-
 cc_match <- read_csv(here::here("data", "cc_match.csv")) %>% mutate(Performed_year_cat = case_when(Performed_year_2 < 2010 ~ "<2010",
                                                                                                    Performed_year_2 >= 2010 & Performed_year_2 <= 2014  ~ "2010-2014",
                                                                                                    Performed_year_2 > 2014  ~ ">2014"),

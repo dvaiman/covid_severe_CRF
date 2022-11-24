@@ -1,0 +1,135 @@
+---
+title: "Untitled"
+author: "Daniel Väisänen"
+date: "8/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(haven)
+library(tidyverse)
+
+
+
+casecontrol <- read_sav(here::here("data/Cases_Controls_1_4_Fulldata4_new_for paired t-test_till Daniel.sav"))
+```
+
+
+
+```{r}
+cc_mean <- casecontrol %>% filter(SevereCOVID == 0) %>% 
+  janitor::clean_names() %>% 
+  group_by(id3) %>% mutate(across(est_vo2max_ml:forvarvsinkomst, mean, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  distinct(id3, .keep_all = TRUE) %>% select(-c(id:id2, lop_nr, severe_covid))
+  
+```
+
+```{r}
+casecontrol_with_mean <- casecontrol %>%  left_join(cc_mean, by = c("LopNr" = "id3")) 
+```
+
+
+
+```{r}
+write_excel_csv(casecontrol_with_mean, here::here("data", "casecontrol_with_mean.csv"), na = "")
+```
+
+
+
+
+```{r}
+casecontrol_with_mean %>% summarise(across(where(is.numeric), mean, na.rm = TRUE))
+```
+
+##################################################
+
+
+Making controls to be on the same row as cases. 4 controls for each case.
+
+```{r}
+casecontrol2 <- read_sav(here::here("data/Cases_Controls_1_4_Fulldata4_new_for Cochrans Q test.sav"))
+```
+
+
+
+```{r}
+controls <- casecontrol2 %>% filter(SevereCOVID == 0) %>% 
+  janitor::clean_names() %>% 
+  group_by(id3) %>% 
+   mutate(number = row_number()) %>%
+  ungroup() %>% 
+  select(-c(severe_covid, id, id1, id2, lop_nr,c)) %>% 
+  mutate(across(where(is.numeric), as.character)) %>% 
+  pivot_longer(-c( id3, number)) %>% arrange(name) %>% 
+  group_by(id3) %>% 
+  pivot_wider(id_cols = id3,
+              names_from = c(name, number),
+              values_from = value
+              ) %>% 
+  mutate(id3 = as.numeric(id3))
+  
+  
+```
+
+```{r}
+casecontrol_with_4_controls <- casecontrol2 %>%  left_join(controls, by = c("LopNr" = "id3")) 
+```
+
+```{r}
+write_excel_csv(casecontrol_with_4_controls, here::here("data", "casecontrol_with_4_controls.csv"), na = "")
+```
+
+
+
+##################################################
+
+
+Making controls to be on the same row as cases. 4 controls for each case.
+
+```{r}
+casecontrol3 <- read_sav(here::here("data/Cases_Controls_1_4_Fulldata4_new_for dicho Cochran.sav"))
+
+casecontrol3 <- read_sav(here::here("data", "Cases_Controls_1_4_Fulldata4_new_for dicho Cochran_omgang 2.sav"))
+```
+
+
+```{r}
+controls <- casecontrol3 %>% 
+  filter(SevereCOVID == 0) %>% 
+  janitor::clean_names() %>% 
+  group_by(id3) %>% 
+   mutate(number = row_number()) %>%
+  ungroup() %>% 
+  select(-c(severe_covid, id, id1, id2, lop_nr,c)) %>% 
+  mutate(across(where(is.numeric), as.character)) %>% 
+  pivot_longer(-c( id3, number)) %>% arrange(name) %>% 
+  group_by(id3) %>% 
+  pivot_wider(id_cols = id3,
+              names_from = c(name, number),
+              values_from = value
+              ) %>% 
+  mutate(id3 = as.numeric(id3))
+  
+  
+```
+
+```{r}
+casecontrol_with_4_controls_di <- casecontrol3 %>%  left_join(controls, by = c("LopNr" = "id3")) 
+```
+
+
+
+```{r}
+write_excel_csv(casecontrol_with_4_controls_di, here::here("data", "casecontrol_with_4_controls_di.csv"), na = "")
+
+write_excel_csv(casecontrol_with_4_controls_di, here::here("data", "casecontrol_with_4_controls_di_omg2.csv"), na = "")
+
+```
+

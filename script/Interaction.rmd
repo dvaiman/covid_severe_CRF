@@ -1,0 +1,314 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+```{r}
+cc_match <- read_csv(here::here("data", "cc_match.csv")) %>% 
+  mutate(Performed_year_cat = case_when(Performed_year_2 < 2010 ~ "<2010",
+                                        Performed_year_2 >= 2010 & Performed_year_2 <= 2014  ~ "2010-2014",
+                                        Performed_year_2 > 2014  ~ ">2014"),
+         Performed_year_cat = as.factor(Performed_year_cat),
+         SevereCOVID = as.factor(SevereCOVID),
+         sex = as.factor(sex),
+         #TobaccoSmoking = as.factor(TobaccoSmoking),
+         #StressOverall = as.factor(StressOverall),
+         #Diet = as.factor(Diet),
+         #Antal_tidigare_sjd = as.factor(Antal_tidigare_sjd),
+         Utbildning = fct_relevel(Utbildning,"3.Hög" , "2.Medel","1.Låg" ),
+         Civil_diko = as.factor(Civil_diko),
+         countryofbirth = ifelse(FodelseLandEU28 == "Sverige", "Sverige", "Other"),
+         Ssyk_hpi_scb_wb_hl = case_when(Ssyk1_hpi_scb_combined >= 1  & Ssyk1_hpi_scb_combined <= 3 ~ 'White-collar high-skilled',
+                                                             Ssyk1_hpi_scb_combined >= 4  & Ssyk1_hpi_scb_combined <= 5 ~ 'White-collar low-skilled',
+                                                             Ssyk1_hpi_scb_combined >= 6  & Ssyk1_hpi_scb_combined <= 7 ~ 'Blue-collar high-skilled',
+                                                             Ssyk1_hpi_scb_combined >= 8  & Ssyk1_hpi_scb_combined <= 9 ~ 'Blue-collar low-skilled'),
+         
+         Ssyk1_hpi_scb_combined = as.factor(Ssyk1_hpi_scb_combined),
+         income_1 = ntile(CSFVI, 4),
+         income_1 = as.factor(income_1),
+         TobaccoSmoking = as.factor(TobaccoSmoking),
+         StressOverall = as.factor(StressOverall)
+  )
+
+
+levels(cc_match$Utbildning)
+
+FodelseLandEU28 = as.factor(FodelseLandEU28)
+
+cc_match %>%  count(Utbildning)
+
+glimpse(cc_match)
+```
+
+
+Understanding the interaction coefficient:
+https://yury-zablotski.netlify.app/post/multiple-logistic-regression-with-interactions/
+https://www.theanalysisfactor.com/interactions-categorical-and-continuous-variables/
+https://www.stathelp.se/en/regression_interaction_en.html
+
+
+
+
+
+
+```{r}
+
+a1 <- cc_match %>% 
+  glm(SevereCOVID ~ Utbildning *BMI_ny  + Performed_year_cat + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Utbildning|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "a_adj1")
+
+
+a2 <- cc_match %>% 
+  glm(SevereCOVID ~ Utbildning * BMI_ny + EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall + TobaccoSmoking, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Utbildning|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "a_adj2")
+
+
+
+
+a3 <- cc_match %>% 
+  glm(SevereCOVID ~ Utbildning * EstVO2max_ml + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Utbildning|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "b_adj1")
+
+
+a4 <- cc_match %>% 
+  glm(SevereCOVID ~ Utbildning * EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall + TobaccoSmoking, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Utbildning|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "b_adj2")
+
+
+```
+
+
+```{r}
+b1 <- cc_match %>% 
+  glm(SevereCOVID ~  Civil_diko * BMI_ny + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Civil|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "c_adj1")
+
+
+b2 <- cc_match %>% 
+  glm(SevereCOVID ~ Civil_diko * BMI_ny + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Civil|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "c_adj2")
+
+
+
+
+b3 <- cc_match %>% 
+  glm(SevereCOVID ~ Civil_diko * EstVO2max_ml + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Civil|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "d_adj1")
+
+
+b4 <- cc_match %>% 
+  glm(SevereCOVID ~ Civil_diko * EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Civil|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "d_adj2")
+```
+
+```{r}
+c1 <- cc_match %>% 
+  glm(SevereCOVID ~ countryofbirth * BMI_ny + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "country|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "e_adj1")
+
+
+c2 <- cc_match %>% 
+  glm(SevereCOVID ~ countryofbirth * BMI_ny + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "country|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "e_adj2")
+
+
+
+
+c3 <- cc_match %>% 
+  glm(SevereCOVID ~ countryofbirth * EstVO2max_ml + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "country|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "f_adj1")
+
+
+c4 <- cc_match %>% 
+  glm(SevereCOVID ~ countryofbirth * EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "country|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "f_adj2")
+```
+
+```{r}
+d1 <- cc_match %>% 
+  glm(SevereCOVID ~ Ssyk_hpi_scb_wb_hl * BMI_ny + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Ssyk_hpi_scb_wb_hl|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "g_adj1")
+
+
+d2 <- cc_match %>% 
+  glm(SevereCOVID ~ Ssyk_hpi_scb_wb_hl * BMI_ny + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Ssyk_hpi_scb_wb_hl|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "g_adj2")
+
+
+
+
+d3 <- cc_match %>% 
+  glm(SevereCOVID ~ Ssyk_hpi_scb_wb_hl * EstVO2max_ml + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE)%>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Ssyk_hpi_scb_wb_hl|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "h_adj1")
+
+
+d4 <- cc_match %>% 
+  glm(SevereCOVID ~ Ssyk_hpi_scb_wb_hl * EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T, exponentiate = TRUE) %>% 
+  select(term, estimate, conf.low,conf.high, p.value) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "Ssyk_hpi_scb_wb_hl|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "h_adj2")
+```
+
+
+
+
+
+```{r}
+e1 <- cc_match %>% 
+  glm(SevereCOVID ~ income_1 * BMI_ny + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T) %>% 
+  select(term,estimate, p.value, conf.low,conf.high) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "income_1|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "i_adj1")
+
+
+e2 <- cc_match %>% 
+  glm(SevereCOVID ~ income_1 * BMI_ny + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T) %>% 
+  select(term,estimate, p.value, conf.low,conf.high) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "income_1|BMI")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "i_adj2")
+
+
+
+
+e3 <- cc_match %>% 
+  glm(SevereCOVID ~ income_1 * EstVO2max_ml + Performed_year + sex+ Age, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T)%>% 
+  select(term,estimate, p.value, conf.low,conf.high) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "income_1|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "j_adj1")
+
+
+e4 <- cc_match %>% 
+  glm(SevereCOVID ~ income_1 * EstVO2max_ml + Performed_year + sex+ Age + Antal_tidigare_sjd + StressOverall, 
+      data = .,  family = binomial) %>% 
+broom::tidy(conf.int = T)%>% 
+  select(term,estimate, p.value, conf.low,conf.high) %>% 
+  filter(!term == "(Intercept)",
+         str_detect(term, "income_1|Est")) %>% 
+  mutate(across(where(is.double), round, 3),
+         model = "j_adj2")
+```
+
+
+```{r}
+
+
+frame <- rbind(a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4,d1,d2,d3,d4,e1,e2,e3,e4)
+
+
+write_csv(frame, here::here("covid_interaction_models.csv"))
+
+```
+
